@@ -1,0 +1,48 @@
+name: Deploy MERN App to AWS
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v3
+
+      - name: Copy Files to AWS EC2
+        uses: appleboy/scp-action@master
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ubuntu
+          key: ${{ secrets.AWS_KEY }}
+          source: "."
+          target: "/home/ubuntu/idurar-erp-crm"
+
+      - name: Restart Backend with PM2
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ubuntu
+          key: ${{ secrets.AWS_KEY }}
+          script: |
+            cd /home/ubuntu/idurar-erp-crm/backend
+            npm install
+            pm2 restart backend
+            pm2 save
+
+      - name: Restart Frontend with Nginx
+        uses: appleboy/ssh-action@master
+        with:
+          host: ${{ secrets.AWS_HOST }}
+          username: ubuntu
+          key: ${{ secrets.AWS_KEY }}
+          script: |
+            cd /home/ubuntu/idurar-erp-crm/frontend
+            npm install
+            npm run build
+            sudo cp -r dist/* /var/www/html/
+            sudo systemctl restart nginx
